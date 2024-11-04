@@ -76,8 +76,8 @@ pipeline {
                         COPY src ./src
                         EXPOSE 8080
                         CMD ["./mvnw", "jetty:run-war"]
+                        EOF
                     '''
-                    // sh 'docker build -t $DOCKER_IMAGE_NAME:$DOCKER_TAG .'
                 }
             }
         }
@@ -87,7 +87,7 @@ pipeline {
                 script {
                     echo "Linting Dockerfile with Hadolint"
                     sh '''
-                    docker run --rm -i hadolint/hadolint < Dockerfile > hadolint_report.txt
+                        docker run --rm -i hadolint/hadolint < Dockerfile > hadolint_report.txt
                     '''
                     archiveArtifacts artifacts: 'hadolint_report.txt', allowEmptyArchive: true
                 }
@@ -105,40 +105,31 @@ pipeline {
         }
 
         stage('Trivy Image Scan') {
-    steps {
-        script {
-            echo "Scanning Docker Image with Trivy"
-            def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
-            sh """
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --scanners vuln --format json --output trivy_report.pdf ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}
-            jq . trivy_report.json | pandoc -f json -t pdf -o trivy_report.pdf
-            """
-            archiveArtifacts artifacts: 'trivy_report.pdf', allowEmptyArchive: true
+            steps {
+                script {
+                    echo "Scanning Docker Image with Trivy"
+                    def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
+                    sh """
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --scanners vuln --format json --output trivy_report.json ${imageTag}
+                        jq . trivy_report.json | pandoc -f json -t pdf -o trivy_report.pdf
+                    """
+                    archiveArtifacts artifacts: 'trivy_report.pdf', allowEmptyArchive: true
+                }
+            }
         }
-    }
-}
 
         stage('OWASP ZAP Scan') {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     script {
-
-                        sh '''sudo apt-get install -y python3
-                                python3 --version '''
-
+                        sh '''
+                            sudo apt-get install -y python3
+                            python3 --version
+                        '''
                         echo "Selected OWASP ZAP scan type: ${params.ZAP_SCAN_TYPE}"
-                        def zapScript = ''
-                        if (params.ZAP_SCAN_TYPE == 'Baseline') {
-                        zapScript = 'zap-baseline.py'
-                        } else if (params.ZAP_SCAN_TYPE == 'API') {
-                        zapScript = 'zap-api-scan.py'
-                        } else if (params.ZAP_SCAN_TYPE == 'FULL') {
-                        zapScript = 'zap-full-scan.py'
-                        }
-
-                        def status = sh(script: '''#!/bin/bash
-                        cat zap-api-scan.py
-                        docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.89.252.41:4000/ > ${zapScript}.html
+                        def zapScript = params.ZAP_SCAN_TYPE == 'Baseline' ? 'zap-baseline.py' : (params.ZAP_SCAN_TYPE == 'API' ? 'zap-api-scan.py' : 'zap-full-scan.py')
+                        def status = sh(script: '''
+                            docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.89.252.41:4000/ > ${zapScript}.html
                         ''', returnStatus: true)
 
                         if (status == 0) {
@@ -150,6 +141,20 @@ pipeline {
                 }
             }
         }
+    }
+}    
+    //     stage('Push Docker Image') {
+    //         steps {
+    //             script {
+    //                 echo "Pushing Docker Image to DockerHub"
+    //                 def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
+    //                 docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
+    //                     sh "docker push ${imageTag}"
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 //         stage('ZAP Baseline Scan') {
 //             steps {
 //                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
