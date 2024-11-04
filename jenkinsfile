@@ -78,6 +78,7 @@ pipeline {
                         CMD ["./mvnw", "jetty:run-war"]
                         EOF
                     '''
+                    sh 'docker build -t ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID} .'
                 }
             }
         }
@@ -94,15 +95,15 @@ pipeline {
             }
         }
 
-        stage('Building Docker Image') {
-            steps {
-                script {
-                    echo "Building Docker Image"
-                    def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
-                    sh "docker build -t ${imageTag} ."
-                }
-            }
-        }
+        // stage('Building Docker Image') {
+        //     steps {
+        //         script {
+        //             echo "Building Docker Image"
+        //             def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
+        //             sh "docker build -t ${imageTag} ."
+        //         }
+        //     }
+        // }
 
         stage('Trivy Image Scan') {
             steps {
