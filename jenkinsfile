@@ -1,5 +1,10 @@
 pipeline {
     agent any
+    tools {
+        // Specify the JDK and Maven installations to use
+        jdk 'jdk17' // Make sure 'jdk17' is configured in Jenkins under Global Tool Configuration
+        maven 'Maven' // Ensure 'maven' is configured in Jenkins under Global Tool Configuration
+    }
     environment {
         // Environment variables for tool connections
         SONARQUBE_SERVER = 'sonar-server' // Configure in Jenkins
@@ -7,7 +12,6 @@ pipeline {
         COMMIT_ID = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
     }
     stages {
-
         // Stage 1: Unit Test with Maven
         stage('Unit Test') {
             steps {
@@ -43,7 +47,7 @@ pipeline {
             }
         }
 
-        // Stage 4: Build Test
+        // Stage 4: Build WAR Package
         stage('Build WAR Package') {
             steps {
                 script {
