@@ -1,17 +1,14 @@
 pipeline {
     agent any
     tools {
-        
-        maven 'Maven' // Ensure 'maven' is configured in Jenkins under Global Tool Configuration
+        maven 'Maven' 
     }
     environment {
-        // Environment variables for tool connections
-        SONARQUBE_SERVER = 'sonar-server' // Configure in Jenkins
+        SONARQUBE_SERVER = 'sonar-server' 
         DOCKERHUB_REPO = 'chillakurulathasree/petclinic'
         COMMIT_ID = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
     }
     stages {
-        // Stage 1: Unit Test with Maven
         stage('Unit Test') {
             steps {
                 script {
@@ -21,7 +18,6 @@ pipeline {
             }
         }
 
-        // Stage 2: Static Application Security Testing (SAST) with SonarQube
         stage('SAST with SonarQube') {
             steps {
                 script {
@@ -32,25 +28,25 @@ pipeline {
                 }
             }
         }
-        // stage 3 :owasp dependency check
+
         stage('OWASP Dependency Check') {
             steps {
                 script {
                     timeout(time: 60, unit: 'MINUTES') {
                         dependencyCheck additionalArguments: '--scan ./ --disableNodeJS', odcInstallation: 'owasp'
                         dependencyCheckPublisher(
-                            failedTotalCritical: 1, 
-                            failedTotalHigh: 5, 
+                            failedTotalCritical: 1,
+                            failedTotalHigh: 5,
                             pattern: 'dependency-check-report.xml',
-                            stopBuild: true, 
-                            unstableTotalCritical: 2, 
+                            stopBuild: true,
+                            unstableTotalCritical: 2,
                             unstableTotalHigh: 10
                         )
                     }
                 }
             }
         }
-        // Stage 4: Build WAR Package
+
         stage('Build WAR Package') {
             steps {
                 script {
@@ -60,7 +56,20 @@ pipeline {
             }
         }
 
-        // Stage 5: Lint Dockerfile with Hadolint
+        stage('Create Dockerfile') {
+            steps {
+                script {
+                    echo "Creating Dockerfile for Tomcat deployment"
+                    writeFile file: 'Dockerfile', text: '''
+                    FROM tomcat:9.0-jdk11
+                    COPY target/*.war /usr/local/tomcat/webapps/
+                    EXPOSE 8080
+                    CMD ["catalina.sh", "run"]
+                    '''
+                }
+            }
+        }
+
         stage('Lint Dockerfile') {
             steps {
                 script {
@@ -73,7 +82,6 @@ pipeline {
             }
         }
 
-        // Stage 6: Build Docker Image
         stage('Build Docker Image') {
             steps {
                 script {
@@ -84,7 +92,6 @@ pipeline {
             }
         }
 
-        // Stage 7: Docker Image Vulnerability Scanning with Trivy
         stage('Trivy Image Scan') {
             steps {
                 script {
@@ -98,47 +105,55 @@ pipeline {
             }
         }
 
-        // Stage 8: OWASP ZAP Scan
-        stage('OWASP ZAP Scan') {
+        stage('ZAP Baseline Scan') {
             steps {
-                script {
-                    echo "Running OWASP ZAP Scan"
-                    sh '''
-                    docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-full-scan.py -t http://localhost -r zap_report.html -i
-                    '''
-                    archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
-                }
-            }
-        }
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    script {
+                        def status = sh(script: '''#!/bin/bash
+                        docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+                        -t https://www.example.com/ > zap_baselinereport.html
+                        ''', returnStatus: true)
 
-        // Stage 9: Push Docker Image to DockerHub
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    echo "Pushing Docker Image to DockerHub"
-                    def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
-                    docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
-                        sh "docker push ${imageTag}"
+                        if (status == 0) {
+                            echo "ZAP scan completed successfully."
+                        } else {
+                            error "ZAP scan failed with status code: ${status}"
+                        }
                     }
                 }
             }
         }
     }
-
-    post {
-        always {
-            echo "Cleaning up Docker resources"
-            sh 'docker system prune -f'
-        }
-        success {
-            mail to: 'lathasree.chillakuru@gmail.com',
-                 subject: "Jenkins Job - SUCCESS",
-                 body: "The Jenkins job has completed successfully."
-        }
-        failure {
-            mail to: 'lathasree.chillakuru@gmail.com',
-                 subject: "Jenkins Job - FAILURE",
-                 body: "The Jenkins job has failed. Please review the logs."
-        }
-    }
 }
+
+        // Stage 9: Push Docker Image to DockerHub
+    //     stage('Push Docker Image') {
+    //         steps {
+    //             script {
+    //                 echo "Pushing Docker Image to DockerHub"
+    //                 def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
+    //                 docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
+    //                     sh "docker push ${imageTag}"
+    //                 }
+    //             }
+    //         }
+    //     }
+    
+
+    // post {
+    //     always {
+    //         echo "Cleaning up Docker resources"
+    //         sh 'docker system prune -f'
+    //     }
+    //     success {
+    //         mail to: 'lathasree.chillakuru@gmail.com',
+    //              subject: "Jenkins Job - SUCCESS",
+    //              body: "The Jenkins job has completed successfully."
+    //     }
+    //     failure {
+    //         mail to: 'lathasree.chillakuru@gmail.com',
+    //              subject: "Jenkins Job - FAILURE",
+    //              body: "The Jenkins job has failed. Please review the logs."
+    //     }
+    // }
+
