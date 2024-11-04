@@ -98,7 +98,7 @@ pipeline {
             echo "Scanning Docker Image with Trivy"
             def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
             sh """
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --scanners vuln --format table --output trivy_report.pdf ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --scanners vuln --format pdf --output trivy_report.pdf ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}
             """
             archiveArtifacts artifacts: 'trivy_report.pdf', allowEmptyArchive: true
         }
