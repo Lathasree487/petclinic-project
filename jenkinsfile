@@ -96,25 +96,14 @@ pipeline {
             }
         }
 
-        // stage('Building Docker Image') {
-        //     steps {
-        //         script {
-        //             echo "Building Docker Image"
-        //             def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
-        //             sh "docker build -t ${imageTag} ."
-        //         }
-        //     }
-        // }
+        
 
         stage('Trivy Image Scan') {
             steps {
                 script {
                     echo "Scanning Docker Image with Trivy"
                     def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
-                    sh """
-                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --scanners vuln --format json --output trivy_report.json ${imageTag}
-                        jq . trivy_report.json | pandoc -f json -t pdf -o trivy_report.pdf
-                    """
+                    sh 'trivy image --exit-code 1 --severity HIGH,CRITICAL --format json -o trivy_report.pdf $imageTag'
                     archiveArtifacts artifacts: 'trivy_report.pdf', allowEmptyArchive: true
                 }
             }
