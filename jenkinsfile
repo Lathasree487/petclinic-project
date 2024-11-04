@@ -78,7 +78,7 @@ pipeline {
                         CMD ["./mvnw", "jetty:run-war"]
                         EOF
                     '''
-                    sh 'docker build -t ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID} .'
+                    sh 'docker build -t $DOCKERHUB_REPO:$env.BUILD_NUMBER-$COMMIT_ID .'
                 }
             }
         }
