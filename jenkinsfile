@@ -77,7 +77,7 @@ pipeline {
                         COPY src ./src
                         EXPOSE 8080
                         CMD ["./mvnw", "jetty:run-war"]
-                        EOF
+                        
                     '''
                     sh "docker build -t ${imageTag} ."
                 }
