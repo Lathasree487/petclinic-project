@@ -99,6 +99,7 @@ pipeline {
             def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
             sh """
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --scanners vuln --format json --output trivy_report.pdf ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}
+            jq . trivy_report.json | pandoc -f json -t pdf -o trivy_report.pdf
             """
             archiveArtifacts artifacts: 'trivy_report.pdf', allowEmptyArchive: true
         }
