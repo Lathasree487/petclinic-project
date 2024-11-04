@@ -1,8 +1,7 @@
 pipeline {
     agent any
     tools {
-        // Specify the JDK and Maven installations to use
-        // jdk 'jdk17' // Make sure 'jdk17' is configured in Jenkins under Global Tool Configuration
+        
         maven 'Maven' // Ensure 'maven' is configured in Jenkins under Global Tool Configuration
     }
     environment {
@@ -33,20 +32,24 @@ pipeline {
                 }
             }
         }
-
-        // Stage 3: Dependency Scanning with OWASP Dependency-Check
-        stage('Dependency Scanning') {
+        // stage 3 :owasp dependency check
+        stage('OWASP Dependency Check') {
             steps {
                 script {
-                    echo "Running OWASP Dependency Check"
-                    sh '''
-                    dependency-check --scan . --out dependency-check-report --format ALL
-                    '''
-                    archiveArtifacts artifacts: 'dependency-check-report/dependency-check-report.*', allowEmptyArchive: true
+                    timeout(time: 60, unit: 'MINUTES') {
+                        dependencyCheck additionalArguments: '--scan ./ --disableNodeJS', odcInstallation: 'owasp'
+                        dependencyCheckPublisher(
+                            failedTotalCritical: 1, 
+                            failedTotalHigh: 5, 
+                            pattern: 'dependency-check-report.xml',
+                            stopBuild: true, 
+                            unstableTotalCritical: 2, 
+                            unstableTotalHigh: 10
+                        )
+                    }
                 }
             }
         }
-
         // Stage 4: Build WAR Package
         stage('Build WAR Package') {
             steps {
