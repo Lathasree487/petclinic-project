@@ -7,6 +7,8 @@ pipeline {
         SONARQUBE_SERVER = 'sonar-server' 
         DOCKERHUB_REPO = 'chillakurulathasree/petclinic'
         COMMIT_ID = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+        ECR_URI = '593793053373.dkr.ecr.us-east-1.amazonaws.com/petclinic'  // Replace with your actual ECR URI
+        AWS_REGION = 'us-east-1'  // Replace with your AWS region
     }
     parameters {
         choice(name: 'ZAP_SCAN_TYPE', choices: ['Baseline', 'API', 'FULL'], description: 'Choose the type of OWASP ZAP scan to run')
@@ -136,18 +138,34 @@ pipeline {
                 }
             }
         }
-
-        stage('Push Docker Image') {
+        stage('Push to ECR') {
             steps {
                 script {
-                    echo "Pushing Docker Image to DockerHub"
+                    echo "Logging into AWS ECR"
+                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}"
+                    
+                    echo "Tagging Docker image"
                     def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
-                    docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
-                        sh "docker push ${imageTag}"
-                    }
+                    def ecrImageTag = "${ECR_URI}:${env.BUILD_NUMBER}-${COMMIT_ID}"
+                    sh "docker tag ${imageTag} ${ecrImageTag}"
+                    
+                    echo "Pushing image to ECR"
+                    sh "docker push ${ecrImageTag}"
                 }
             }
         }
+
+        // stage('Push Docker Image') {
+        //     steps {
+        //         script {
+        //             echo "Pushing Docker Image to DockerHub"
+        //             def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
+        //             docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
+        //                 sh "docker push ${imageTag}"
+        //             }
+        //         }
+        //     }
+        // }
     }
     // post {
     //     always {
