@@ -97,7 +97,7 @@ pipeline {
                         docker run --rm -i hadolint/hadolint < Dockerfile > hadolint_report.txt
                     '''
                     archiveArtifacts artifacts: 'hadolint_report.txt', allowEmptyArchive: true
-                    sh "docker build -t ${imageTag} ."
+                    sh "docker build -t ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID} ."
                 }
             }
         }
