@@ -121,10 +121,6 @@ pipeline {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     script {
-                        sh '''
-                            sudo apt-get install -y python3
-                            python3 --version
-                        '''
                         echo "Selected OWASP ZAP scan type: ${params.ZAP_SCAN_TYPE}"
                         def zapScript = params.ZAP_SCAN_TYPE == 'Baseline' ? 'zap-baseline.py' : (params.ZAP_SCAN_TYPE == 'API' ? 'zap-api-scan.py' : 'zap-full-scan.py')
                         def status = sh(script: '''
