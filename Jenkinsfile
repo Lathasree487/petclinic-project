@@ -9,6 +9,7 @@ pipeline {
         COMMIT_ID = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
         ECR_URI = '593793053373.dkr.ecr.us-east-1.amazonaws.com/petclinic'  // Replace with your actual ECR URI
         AWS_REGION = 'us-east-1'  // Replace with your AWS region
+        SLACK_CHANNEL = '#all-petclinic'
     }
     parameters {
         choice(name: 'ZAP_SCAN_TYPE', choices: ['Baseline', 'API', 'FULL'], description: 'Choose the type of OWASP ZAP scan to run')
@@ -27,7 +28,6 @@ pipeline {
                 }
             }
         }
-
         stage('SAST with SonarQube') {
             steps {
                 script {
@@ -38,7 +38,6 @@ pipeline {
                 }
             }
         }
-
         stage('OWASP Dependency Check') {
             steps {
                 script {
@@ -56,7 +55,6 @@ pipeline {
                 }
             }
         }
-
         stage('Build WAR Package') {
             steps {
                 script {
@@ -65,7 +63,6 @@ pipeline {
                 }
             }
         }
-
         stage('Build Docker Image') {
             steps {
                 script {
@@ -84,13 +81,12 @@ pipeline {
                         COPY src ./src
                         EXPOSE 8080
                         CMD ["./mvnw", "jetty:run-war"]
-                        
+                        EOF
                     '''
                     // sh "docker build -t ${imageTag} ."
                 }
             }
         }
-
         stage('Lint Dockerfile') {
             steps {
                 script {
@@ -103,9 +99,6 @@ pipeline {
                 }
             }
         }
-
-        
-
         stage('Trivy Image Scan') {
             steps {
                 script {
@@ -113,12 +106,10 @@ pipeline {
                     sh 'trivy image --download-db-only'
                     def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
                     sh "trivy image --exit-code 1 --severity HIGH,CRITICAL --format json -o trivy_report.json $imageTag"
-
                     archiveArtifacts artifacts: 'trivy_report.json', allowEmptyArchive: true
                 }
             }
         }
-
         stage('OWASP ZAP Scan') {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
@@ -128,7 +119,6 @@ pipeline {
                         def status = sh(script: """
                             docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://52.55.125.12:4000/ > ${zapScript}.html
                         """, returnStatus: true)
-
                         if (status == 0) {
                             echo "ZAP scan completed successfully."
                         } else {
@@ -143,44 +133,59 @@ pipeline {
                 script {
                     echo "Logging into AWS ECR"
                     sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}"
-                    
                     echo "Tagging Docker image"
                     def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
                     def ecrImageTag = "${ECR_URI}:${env.BUILD_NUMBER}-${COMMIT_ID}"
                     sh "docker tag ${imageTag} ${ecrImageTag}"
-                    
                     echo "Pushing image to ECR"
                     sh "docker push ${ecrImageTag}"
                 }
             }
         }
-
-        // stage('Push Docker Image') {
-        //     steps {
-        //         script {
-        //             echo "Pushing Docker Image to DockerHub"
-        //             def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
-        //             docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
-        //                 sh "docker push ${imageTag}"
-        //             }
-        //         }
-        //     }
-        // }
+        stage('Configure Slack Notification') {
+            steps {
+                script {
+                    def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
+                    def message = "*${buildStatus}* - Build #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>) by ${env.BUILD_USER} in ${env.JOB_NAME}"
+                    slackSend(
+                        channel: "${SLACK_CHANNEL}",
+                        color: buildStatus == 'SUCCESS' ? 'good' : 'danger',
+                        message: message
+                    )
+                }
+            }
+        }
     }
-    // post {
-    //     always {
-    //         echo "Cleaning up Docker resources"
-    //         sh 'docker system prune -f'
-    //     }
-    //     success {
-    //         mail to: 'lathasree.chillakuru@gmail.com',
-    //              subject: "Jenkins Job - SUCCESS",
-    //              body: "The Jenkins job has completed successfully."
-    //     }
-    //     failure {
-    //         mail to: 'lathasree.chillakuru@gmail.com',
-    //              subject: "Jenkins Job - FAILURE",
-    //              body: "The Jenkins job has failed. Please review the logs."
-    //     }
-    // }
+    post {
+        always {
+            echo "Cleaning up Docker resources"
+            sh 'docker system prune -f'
+        }
+        success {
+            script {
+                def message = "Jenkins Job - SUCCESS: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' completed successfully."
+                slackSend(
+                    channel: "${SLACK_CHANNEL}",
+                    color: 'good',
+                    message: message
+                )
+            }
+            mail to: 'lathasree.chillakuru@gmail.com',
+                 subject: "Jenkins Job - SUCCESS",
+                 body: "The Jenkins job has completed successfully."
+        }
+        failure {
+            script {
+                def message = "Jenkins Job - FAILURE: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' failed. Please review the logs."
+                slackSend(
+                    channel: "${SLACK_CHANNEL}",
+                    color: 'danger',
+                    message: message
+                )
+            }
+            mail to: 'lathasree.chillakuru@gmail.com',
+                 subject: "Jenkins Job - FAILURE",
+                 body: "The Jenkins job has failed. Please review the logs."
+        }
+    }  
 }
