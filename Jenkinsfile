@@ -10,6 +10,7 @@ pipeline {
         ECR_URI = '593793053373.dkr.ecr.us-east-1.amazonaws.com/petclinic'  // Replace with your actual ECR URI
         AWS_REGION = 'us-east-1'  // Replace with your AWS region
         SLACK_CHANNEL = '#all-petclinic'
+        EMAIL_RECIPIENTS = 'lathasree.chillakuru@gmail.com'
     }
     parameters {
         choice(name: 'ZAP_SCAN_TYPE', choices: ['Baseline', 'API', 'FULL'], description: 'Choose the type of OWASP ZAP scan to run')
