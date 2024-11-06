@@ -75,13 +75,13 @@ pipeline {
                         RUN chown -R appuser:appgroup /usr/local/tomcat
                         WORKDIR /app
                         COPY .mvn/ .mvn
-                        COPY mvnw pom.xml ./
+                        COPY mvnw pom.xml ./ 
                         RUN chmod +x mvnw
                         USER appuser
                         COPY src ./src
                         EXPOSE 8080
                         CMD ["./mvnw", "jetty:run-war"]
-                        EOF
+                        
                     '''
                     // sh "docker build -t ${imageTag} ."
                 }
@@ -145,13 +145,16 @@ pipeline {
         stage('Configure Slack Notification') {
             steps {
                 script {
-                    def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
-                    def message = "*${buildStatus}* - Build #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>) by ${env.BUILD_USER} in ${env.JOB_NAME}"
-                    slackSend(
-                        channel: "${SLACK_CHANNEL}",
-                        color: buildStatus == 'SUCCESS' ? 'good' : 'danger',
-                        message: message
-                    )
+                    withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
+                        def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
+                        def message = "*${buildStatus}* - Build #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>) by ${env.BUILD_USER} in ${env.JOB_NAME}"
+                        slackSend(
+                            channel: "${SLACK_CHANNEL}",
+                            color: buildStatus == 'SUCCESS' ? 'good' : 'danger',
+                            message: message,
+                            tokenCredentialId: 'slack-token'
+                        )
+                    }
                 }
             }
         }
@@ -163,12 +166,15 @@ pipeline {
         }
         success {
             script {
-                def message = "Jenkins Job - SUCCESS: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' completed successfully."
-                slackSend(
-                    channel: "${SLACK_CHANNEL}",
-                    color: 'good',
-                    message: message
-                )
+                withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
+                    def message = "Jenkins Job - SUCCESS: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' completed successfully."
+                    slackSend(
+                        channel: "${SLACK_CHANNEL}",
+                        color: 'good',
+                        message: message,
+                        tokenCredentialId: 'slack-token'
+                    )
+                }
             }
             mail to: 'lathasree.chillakuru@gmail.com',
                  subject: "Jenkins Job - SUCCESS",
@@ -176,12 +182,15 @@ pipeline {
         }
         failure {
             script {
-                def message = "Jenkins Job - FAILURE: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' failed. Please review the logs."
-                slackSend(
-                    channel: "${SLACK_CHANNEL}",
-                    color: 'danger',
-                    message: message
-                )
+                withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
+                    def message = "Jenkins Job - FAILURE: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' failed. Please review the logs."
+                    slackSend(
+                        channel: "${SLACK_CHANNEL}",
+                        color: 'danger',
+                        message: message,
+                        tokenCredentialId: 'slack-token'
+                    )
+                }
             }
             mail to: 'lathasree.chillakuru@gmail.com',
                  subject: "Jenkins Job - FAILURE",
