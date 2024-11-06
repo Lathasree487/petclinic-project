@@ -175,10 +175,10 @@ pipeline {
                         - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
                         - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
                     """
-
+                    echo "${body}"
                     emailext (
                         subject: subject,
-                        body: body,
+                        body: "${body}",
                         to: "${EMAIL_RECIPIENTS}",
                         attachmentsPattern: '**/*.html, **/*.txt, **/*.json'  // Attach the reports
                     )
