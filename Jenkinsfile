@@ -143,26 +143,64 @@ pipeline {
                 }
             }
         }
-        stage('Configure Slack Notification') {
-            steps {
-                script {
-                    withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
-                        def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
-                        def message = "*${buildStatus}* - Build #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>) by ${env.BUILD_USER} in ${env.JOB_NAME}"
-                        slackSend(
-                            channel: "${SLACK_CHANNEL}",
-                            color: buildStatus == 'SUCCESS' ? 'good' : 'danger',
-                            message: message,
-                            tokenCredentialId: 'slack-token'
-                        )
-                    }
+        // stage('Configure Slack Notification') {
+        //     steps {
+        //         script {
+        //             withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
+        //                 def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
+        //                 def message = "*${buildStatus}* - Build #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>) by ${env.BUILD_USER} in ${env.JOB_NAME}"
+        //                 slackSend(
+        //                     channel: "${SLACK_CHANNEL}",
+        //                     color: buildStatus == 'SUCCESS' ? 'good' : 'danger',
+        //                     message: message,
+        //                     tokenCredentialId: 'slack-token'
+        //                 )
+        //             }
+        //         }
+        //     }
+        // }
+        //  stage('Configure Email Notification') {
+        //     steps {
+        //         script {
+        //             def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
+        //             def subject = "Jenkins Build #${env.BUILD_NUMBER} - ${buildStatus}"
+        //             def body = """
+        //                 Build Status: ${buildStatus}
+        //                 Commit ID: ${COMMIT_ID}
+        //                 Build Link: ${env.BUILD_URL}
+        //                 Triggered By: ${env.BUILD_USER}
+
+        //                 Reports:
+        //                 - Trivy Report: ${env.WORKSPACE}/trivy_report.json
+        //                 - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
+        //                 - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
+        //             """
+        //             echo "${body}"
+        //             emailext (
+        //                 subject: subject,
+        //                 body: "${body}",
+        //                 to: "${EMAIL_RECIPIENTS}",
+        //                 attachmentsPattern: '**/*.html, **/*.txt, **/*.json'  // Attach the reports
+        //             )
+        //         }
+        //     }
+        // }
+    }
+    post {
+        always {
+            
+            script {
+                withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
+                    def message = "Jenkins Job - SUCCESS: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' completed successfully."
+                    slackSend(
+                        channel: "${SLACK_CHANNEL}",
+                        color: 'good',
+                        message: message,
+                        tokenCredentialId: 'slack-token'
+                    )
                 }
             }
-        }
-         stage('Configure Email Notification') {
-            steps {
-                script {
-                    def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
+            def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
                     def subject = "Jenkins Build #${env.BUILD_NUMBER} - ${buildStatus}"
                     def body = """
                         Build Status: ${buildStatus}
@@ -182,46 +220,10 @@ pipeline {
                         to: "${EMAIL_RECIPIENTS}",
                         attachmentsPattern: '**/*.html, **/*.txt, **/*.json'  // Attach the reports
                     )
-                }
-            }
-        }
-    }
-    post {
-        always {
             echo "Cleaning up Docker resources"
-            sh 'docker system prune -f'
+            deleteDir()
         }
-        success {
-            script {
-                withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
-                    def message = "Jenkins Job - SUCCESS: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' completed successfully."
-                    slackSend(
-                        channel: "${SLACK_CHANNEL}",
-                        color: 'good',
-                        message: message,
-                        tokenCredentialId: 'slack-token'
-                    )
-                }
-            }
-            mail to: 'lathasree.chillakuru@gmail.com',
-                 subject: "Jenkins Job - SUCCESS",
-                 body: "The Jenkins job has completed successfully."
-        }
-        failure {
-            script {
-                withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
-                    def message = "Jenkins Job - FAILURE: Build #${env.BUILD_NUMBER} in job '${env.JOB_NAME}' failed. Please review the logs."
-                    slackSend(
-                        channel: "${SLACK_CHANNEL}",
-                        color: 'danger',
-                        message: message,
-                        tokenCredentialId: 'slack-token'
-                    )
-                }
-            }
-            mail to: 'lathasree.chillakuru@gmail.com',
-                 subject: "Jenkins Job - FAILURE",
-                 body: "The Jenkins job has failed. Please review the logs."
-        }
+        
+        
     }  
 }
