@@ -71,10 +71,10 @@ pipeline {
                     def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
                     sh '''
                         cat <<EOF > Dockerfile
-                        FRO tomcat:9.0-jdk17
-                        RU groupadd -r appgroup && useradd -r -g appgroup -m -d /app appuser
-                        RU chown -R appuser:appgroup /usr/local/tomcat
-                        WORKDIRs /app
+                        FROM tomcat:9.0-jdk17
+                        RUN groupadd -r appgroup && useradd -r -g appgroup -m -d /app appuser
+                        RUN chown -R appuser:appgroup /usr/local/tomcat
+                        WORKDIR /app
                         COPY .mvn/ .mvn
                         COPY mvnw pom.xml ./ 
                         RUN chmod +x mvnw
@@ -123,17 +123,20 @@ pipeline {
                            filetype = 'zap-baseline.html'
                         
                         } else if (params.ZAP_SCAN_TYPE == 'API') {
-                        zapScript = 'zap-api-scan.py'
-                        filetype = 'zap-api-scan.html'
+                           zapScript = 'zap-api-scan.py'
+                           filetype = 'zap-api-scan.html'
                         } else if (params.ZAP_SCAN_TYPE == 'FULL') {
-                        zapScript = 'zap-full-scan.py'
-                        filetype = 'zap-full-scan.html'
+                           zapScript = 'zap-full-scan.py'
+                           filetype = 'zap-full-scan.html'
                         }
                         
                         def status = sh(script: """
                             docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.152.246.198:4000/ > ${filetype}
                         """, returnStatus: true)
-                        env.FILETYPE = filetype
+
+                        env.FILE_TYPE = filetype
+                        echo "${FILE_TYPE}"
+
                         if (status == 0) {
                             echo "ZAP scan completed successfully."
                         } else {
@@ -185,10 +188,10 @@ pipeline {
                             Reports:
                             - Trivy Report: ${env.WORKSPACE}/trivy_report.json
                             - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
-                            - OWASP ZAP Report: ${env.WORKSPACE}/${env.FILETYPE}
+                            - OWASP ZAP Report: ${env.WORKSPACE}/${env.FILE_TYPE}
                         """,
                         to: "${EMAIL_RECIPIENTS}",
-                        attachmentsPattern: "trivy_report.json, hadolint_report.txt, ${env.FILETYPE}"  // Attach the reports
+                        attachmentsPattern: "trivy_report.json, hadolint_report.txt, ${env.FILE_TYPE}"  // Attach the reports
                     )
             echo "Cleaning up Docker resources"
             deleteDir()
