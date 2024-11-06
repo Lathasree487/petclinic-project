@@ -71,10 +71,10 @@ pipeline {
                     def imageTag = "${DOCKERHUB_REPO}:${env.BUILD_NUMBER}-${COMMIT_ID}"
                     sh '''
                         cat <<EOF > Dockerfile
-                        FROM tomcat:9.0-jdk17
-                        RUN groupadd -r appgroup && useradd -r -g appgroup -m -d /app appuser
-                        RUN chown -R appuser:appgroup /usr/local/tomcat
-                        WORKDIR /app
+                        FRO tomcat:9.0-jdk17
+                        RU groupadd -r appgroup && useradd -r -g appgroup -m -d /app appuser
+                        RU chown -R appuser:appgroup /usr/local/tomcat
+                        WORKDIRs /app
                         COPY .mvn/ .mvn
                         COPY mvnw pom.xml ./ 
                         RUN chmod +x mvnw
@@ -129,7 +129,7 @@ pipeline {
                         zapScript = 'zap-full-scan.py'
                         filetype = 'zap-full-scan.html'
                         }
-                        echo "${filetype}"
+                        
                         def status = sh(script: """
                             docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.152.246.198:4000/ > ${filetype}
                         """, returnStatus: true)
@@ -184,10 +184,10 @@ pipeline {
                             Reports:
                             - Trivy Report: ${env.WORKSPACE}/trivy_report.json
                             - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
-                            - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
+                            - OWASP ZAP Report: ${env.WORKSPACE}/${filetype}
                         """,
                         to: "${EMAIL_RECIPIENTS}",
-                        attachmentsPattern: 'trivy_report.json, hadolint_report.txt, zap-full-scan.py.html'  // Attach the reports
+                        attachmentsPattern: "trivy_report.json, hadolint_report.txt, ${filetype}"  // Attach the reports
                     )
             echo "Cleaning up Docker resources"
             deleteDir()
