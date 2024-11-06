@@ -133,6 +133,7 @@ pipeline {
                         def status = sh(script: """
                             docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.152.246.198:4000/ > ${filetype}
                         """, returnStatus: true)
+                        env.FILETYPE = filetype
                         if (status == 0) {
                             echo "ZAP scan completed successfully."
                         } else {
@@ -184,10 +185,10 @@ pipeline {
                             Reports:
                             - Trivy Report: ${env.WORKSPACE}/trivy_report.json
                             - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
-                            - OWASP ZAP Report: ${env.WORKSPACE}/${filetype}
+                            - OWASP ZAP Report: ${env.WORKSPACE}/${env.FILETYPE}
                         """,
                         to: "${EMAIL_RECIPIENTS}",
-                        attachmentsPattern: "trivy_report.json, hadolint_report.txt, ${filetype}"  // Attach the reports
+                        attachmentsPattern: "trivy_report.json, hadolint_report.txt, ${env.FILETYPE}"  // Attach the reports
                     )
             echo "Cleaning up Docker resources"
             deleteDir()
