@@ -200,23 +200,20 @@ pipeline {
                     )
                 }
             }
-            def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
-                    def subject = "Jenkins Build #${env.BUILD_NUMBER} - ${buildStatus}"
-                    def body = """
-                        Build Status: ${buildStatus}
-                        Commit ID: ${COMMIT_ID}
-                        Build Link: ${env.BUILD_URL}
-                        Triggered By: ${env.BUILD_USER}
-
-                        Reports:
-                        - Trivy Report: ${env.WORKSPACE}/trivy_report.json
-                        - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
-                        - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
-                    """
-                    echo "${body}"
+            
                     emailext (
-                        subject: subject,
-                        body: "${body}",
+                        subject: "Jenkins Build # ${currentBuild.currentResult ?: 'SUCCESS'}",
+                            body: """
+                            
+                            Commit ID: ${COMMIT_ID}
+                            Build Link: ${env.BUILD_URL}
+                            Triggered By: ${env.BUILD_USER}
+
+                            Reports:
+                            - Trivy Report: ${env.WORKSPACE}/trivy_report.json
+                            - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
+                            - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
+                        """,
                         to: "${EMAIL_RECIPIENTS}",
                         attachmentsPattern: '**/*.html, **/*.txt, **/*.json'  // Attach the reports
                     )
