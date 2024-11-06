@@ -117,7 +117,7 @@ pipeline {
                         echo "Selected OWASP ZAP scan type: ${params.ZAP_SCAN_TYPE}"
                         def zapScript = params.ZAP_SCAN_TYPE == 'Baseline' ? 'zap-baseline.py' : (params.ZAP_SCAN_TYPE == 'API' ? 'zap-api-scan.py' : 'zap-full-scan.py')
                         def status = sh(script: """
-                            docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://52.55.125.12:4000/ > ${zapScript}.html
+                            docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.152.246.198:4000/ > ${zapScript}.html
                         """, returnStatus: true)
                         if (status == 0) {
                             echo "ZAP scan completed successfully."
