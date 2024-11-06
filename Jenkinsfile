@@ -116,9 +116,22 @@ pipeline {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     script {
                         echo "Selected OWASP ZAP scan type: ${params.ZAP_SCAN_TYPE}"
-                        def zapScript = params.ZAP_SCAN_TYPE == 'Baseline' ? 'zap-baseline.py' : (params.ZAP_SCAN_TYPE == 'API' ? 'zap-api-scan.py' : 'zap-full-scan.py')
+                        def zapScript = ''
+                        def filetype = ''
+                        if (params.ZAP_SCAN_TYPE == 'Baseline') {
+                           zapScript = 'zap-baseline.py'
+                           filetype = 'zap-baseline.html'
+                        
+                        } else if (params.ZAP_SCAN_TYPE == 'API') {
+                        zapScript = 'zap-api-scan.py'
+                        filetype = 'zap-api-scan.html'
+                        } else if (params.ZAP_SCAN_TYPE == 'FULL') {
+                        zapScript = 'zap-full-scan.py'
+                        filetype = 'zap-full-scan.html'
+                        }
+                        echo "${filetype}"
                         def status = sh(script: """
-                            docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.152.246.198:4000/ > ${zapScript}.html
+                            docker run -v $PWD:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable python3 /zap/${zapScript} -t http://54.152.246.198:4000/ > ${filetype}
                         """, returnStatus: true)
                         if (status == 0) {
                             echo "ZAP scan completed successfully."
@@ -143,48 +156,7 @@ pipeline {
                 }
             }
         }
-        // stage('Configure Slack Notification') {
-        //     steps {
-        //         script {
-        //             withCredentials([string(credentialsId: 'slack-token', variable: 'SLACK_TOKEN')]) {
-        //                 def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
-        //                 def message = "*${buildStatus}* - Build #${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>) by ${env.BUILD_USER} in ${env.JOB_NAME}"
-        //                 slackSend(
-        //                     channel: "${SLACK_CHANNEL}",
-        //                     color: buildStatus == 'SUCCESS' ? 'good' : 'danger',
-        //                     message: message,
-        //                     tokenCredentialId: 'slack-token'
-        //                 )
-        //             }
-        //         }
-        //     }
-        // }
-        //  stage('Configure Email Notification') {
-        //     steps {
-        //         script {
-        //             def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
-        //             def subject = "Jenkins Build #${env.BUILD_NUMBER} - ${buildStatus}"
-        //             def body = """
-        //                 Build Status: ${buildStatus}
-        //                 Commit ID: ${COMMIT_ID}
-        //                 Build Link: ${env.BUILD_URL}
-        //                 Triggered By: ${env.BUILD_USER}
-
-        //                 Reports:
-        //                 - Trivy Report: ${env.WORKSPACE}/trivy_report.json
-        //                 - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
-        //                 - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
-        //             """
-        //             echo "${body}"
-        //             emailext (
-        //                 subject: subject,
-        //                 body: "${body}",
-        //                 to: "${EMAIL_RECIPIENTS}",
-        //                 attachmentsPattern: '**/*.html, **/*.txt, **/*.json'  // Attach the reports
-        //             )
-        //         }
-        //     }
-        // }
+        
     }
     post {
         always {
@@ -215,7 +187,7 @@ pipeline {
                             - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
                         """,
                         to: "${EMAIL_RECIPIENTS}",
-                        attachmentsPattern: '**/*.html, **/*.txt, **/*.json'  // Attach the reports
+                        attachmentsPattern: 'trivy_report.json, hadolint_report.txt, zap-full-scan.py.html'  // Attach the reports
                     )
             echo "Cleaning up Docker resources"
             deleteDir()
