@@ -158,6 +158,32 @@ pipeline {
                 }
             }
         }
+         stage('Configure Email Notification') {
+            steps {
+                script {
+                    def buildStatus = currentBuild.currentResult ?: 'SUCCESS'
+                    def subject = "Jenkins Build #${env.BUILD_NUMBER} - ${buildStatus}"
+                    def body = """
+                        Build Status: ${buildStatus}
+                        Commit ID: ${COMMIT_ID}
+                        Build Link: ${env.BUILD_URL}
+                        Triggered By: ${env.BUILD_USER}
+
+                        Reports:
+                        - Trivy Report: ${env.WORKSPACE}/trivy_report.json
+                        - Hadolint Report: ${env.WORKSPACE}/hadolint_report.txt
+                        - OWASP ZAP Report: ${env.WORKSPACE}/zap-full-scan.py.html
+                    """
+
+                    emailext (
+                        subject: subject,
+                        body: body,
+                        to: "${EMAIL_RECIPIENTS}",
+                        attachmentsPattern: '**/*.html, **/*.txt, **/*.json'  // Attach the reports
+                    )
+                }
+            }
+        }
     }
     post {
         always {
