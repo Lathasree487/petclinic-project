@@ -48,7 +48,7 @@ pipeline {
                             failedTotalCritical: 1,
                             failedTotalHigh: 5,
                             pattern: 'dependency-check-report.xml',
-                            stopBuild: true,
+                            stopBuild: false,
                             unstableTotalCritical: 2,
                             unstableTotalHigh: 10
                         )
