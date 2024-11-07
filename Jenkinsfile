@@ -43,7 +43,7 @@ pipeline {
             steps {
                 script {
                     timeout(time: 60, unit: 'MINUTES') {
-                        dependencyCheck additionalArguments: '--scan ./ --disableNodeJS', odcInstallation: 'owasp'
+                        dependencyCheck additionalArguments: '--scan ./ --disableNodeJS', odcInstallation: 'owasp-check'
                         dependencyCheckPublisher(
                             failedTotalCritical: 1,
                             failedTotalHigh: 5,
