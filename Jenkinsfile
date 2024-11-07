@@ -7,7 +7,7 @@ pipeline {
         SONARQUBE_SERVER = 'sonar-server' 
         DOCKERHUB_REPO = 'chillakurulathasree/petclinic'
         COMMIT_ID = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-        ECR_URI = '593793053373.dkr.ecr.us-east-1.amazonaws.com/petclinic'  // Replace with your actual ECR URI
+        ECR_URI = '427673671759.dkr.ecr.us-east-1.amazonaws.com/petclinic'  // Replace with your actual ECR URI
         AWS_REGION = 'us-east-1'  // Replace with your AWS region
         SLACK_CHANNEL = '#all-petclinic'
         EMAIL_RECIPIENTS = 'lathasree.chillakuru@gmail.com'
