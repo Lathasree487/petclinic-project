@@ -33,7 +33,7 @@ pipeline {
             steps {
                 script {
                     echo "Running SonarQube SAST Scan"
-                    withSonarQubeEnv(SONARQUBE_SERVER) {
+                    withSonarQubeEnv(sonar-server) {
                         sh 'mvn sonar:sonar'
                     }
                 }
